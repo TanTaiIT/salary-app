@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "salary-app",
-    "slug": "salary-app",
-    "version": "1.0.0",
+    "name": "Lịch Lương",
+    "slug": "lich-luong-han-quoc",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "salaryapp",
+    "scheme": "lichluong",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -32,7 +32,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

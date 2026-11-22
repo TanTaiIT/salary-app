@@ -1,56 +1,67 @@
-# Welcome to your Expo app 👋
+# Lịch Lương Hàn Quốc: app React Native
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App Expo (React Native) cho người lao động tại Hàn Quốc chấm công và xem trước lương tháng.
+Server nằm ở repo riêng (`../salary`); đặc tả đầy đủ ở `docs/spec.md` của repo đó.
 
-## Get started
+| Thành phần | Phiên bản |
+|---|---|
+| Expo SDK | 58 |
+| React Native | 0.88 |
+| React | 19.3 |
+| Điều hướng | expo-router (tab gốc) |
+| Lưu trên máy | expo-sqlite; token trong expo-secure-store |
+| Kiểm tra dữ liệu | zod 4.6 (cùng bản với server) |
+| Quản lý gói | pnpm 12.21, Node.js 26 |
 
-1. Install dependencies
+## Cấu trúc
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+  app/            màn hình (mỗi file là một route): index (Trang chủ), stats, history, settings
+  components/     component dùng chung: screen (header + nút Thêm ngày công), month-calendar,
+                  day-sheet (bảng chấm công), app-tabs.tsx là thanh tab
+  config/env.ts   biến môi trường EXPO_PUBLIC_*
+  constants/      màu (sáng/tối, màu từng loại giờ), khoảng cách
+  data/           dữ liệu trên máy: app-store (state + thao tác), storage (SQLite; bản web dùng localStorage),
+                  rules (quy định năm từ GET /v1/rules/:year), month (tổng tháng, gợi ý 주휴수당)
+  hooks/          chế độ màu, useMonth
+  lib/            hàm tiện ích (định dạng tiền, hỏi xác nhận...)
+  payroll/        BẢN CHÉP từ server, không sửa ở đây
+  schemas/        BẢN CHÉP từ server, không sửa ở đây
+scripts/
+  sync-shared.mjs chép lại payroll/ và schemas/ từ repo server
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+## Chạy lần đầu
 
-### Other setup steps
+```bash
+corepack enable                 # hoặc: npm i -g pnpm
+pnpm install
+cp .env.example .env            # sửa EXPO_PUBLIC_API_URL nếu cần
+pnpm start                      # rồi bấm a (Android), i (iOS) hoặc w (web)
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Server chạy theo README của repo `../salary` (`pnpm dev`, cổng 3000).
+Trên Android Emulator, `localhost` là máy ảo; dùng `http://10.0.2.2:3000`. Trên điện thoại thật, dùng IP LAN của máy tính.
 
-## Learn more
+`expo-sqlite` và `expo-secure-store` có sẵn trong Expo Go. Khi thêm thư viện có code native ngoài Expo Go
+(ví dụ AdMob, đăng nhập Apple/Google), cần development build: `npx expo run:android` hoặc `eas build --profile development`.
 
-To learn more about developing your project with Expo, look at the following resources:
+Kiểm tra: `pnpm typecheck` và `pnpm lint`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Code dùng chung với server
 
-## Join the community
+`src/payroll/` và `src/schemas/` là bản chép nguyên từ `src/` của repo server, để app tính lương và kiểm tra dữ liệu
+giống hệt server. Muốn sửa thì sửa ở server (kèm test), rồi chép sang:
 
-Join our community of developers creating universal apps.
+```bash
+pnpm sync-shared                # mặc định đọc ../salary; hoặc: pnpm sync-shared <đường-dẫn-repo-server>
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Quy ước
+
+- Thêm thư viện bằng `npx expo install <gói>` để lấy đúng phiên bản hợp với SDK.
+- Không tạo hay sửa tay `ios/`, `android/` (Expo sinh ra từ `app.json` và config plugin).
+- Ngày công là chuỗi `"YYYY-MM-DD"` theo giờ Hàn Quốc, không dùng `Date`; tiền là số nguyên won, hiển thị `3.245.000 ₩`.
+- Token lưu bằng SecureStore, không dùng AsyncStorage.
+- Chuỗi giao diện tiếng Việt; sẽ tách ra file dịch khi thêm tiếng Hàn.

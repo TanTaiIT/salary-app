@@ -3,12 +3,14 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/constants/theme';
+import { Colors, HourColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? 'dark' : 'light';
+  return Colors[useColorScheme()];
+}
 
-  return Colors[theme];
+/** Màu chữ/nền của từng loại giờ x1…x3 */
+export function useHourColors() {
+  return HourColors[useColorScheme()];
 }
