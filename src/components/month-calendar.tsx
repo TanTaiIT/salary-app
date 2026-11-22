@@ -15,43 +15,56 @@ import { useHourColors, useTheme } from '@/hooks/use-theme';
 import { formatHours, formatK, formatWon } from '@/lib/format';
 import { dayOfWeek, totalHours } from '@/payroll/index.ts';
 
-const CELL = `${100 / 7}%` as const;
+/** Chia tháng thành các tuần 7 ô (CN → T7); ô null là ngày ngoài tháng. */
+function weeksOf(month: string): (string | null)[][] {
+  const days = daysOfMonth(month);
+  const cells: (string | null)[] = [...Array<null>(dayOfWeek(days[0]!)).fill(null), ...days];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+}
 
-/** Lịch tháng bắt đầu từ CN; mỗi ô hiện số giờ (màu theo loại giờ nhiều nhất) và tiền ngày "103k". */
+/**
+ * Lịch tháng bắt đầu từ CN; mỗi ô hiện số giờ (màu theo loại giờ nhiều nhất) và tiền ngày "103k".
+ * Dựng từng hàng tuần với ô flex: 1. Không dùng flexWrap + width 14,28%: Android làm tròn pixel
+ * khiến 7 ô vượt 100% và ô thứ 7 rớt xuống hàng (lịch lệch một cột).
+ */
 export function MonthCalendar({ data, holidays }: { data: MonthData; holidays: ReadonlyMap<string, string> }) {
   const theme = useTheme();
   const { openDay } = useApp();
-  const days = daysOfMonth(data.month);
-  const leading = dayOfWeek(days[0]!);
   const today = todayKst();
 
   return (
     <View style={styles.grid}>
-      {DOW_LABELS.map((d, i) => (
-        <View key={d} style={styles.cellWrap}>
+      <View style={styles.row}>
+        {DOW_LABELS.map((d, i) => (
           <View
+            key={d}
             style={[
+              styles.cell,
               styles.dow,
-              i === 0
-                ? { backgroundColor: theme.offBg, borderColor: 'transparent' }
-                : { borderColor: theme.line },
+              i === 0 ? { backgroundColor: theme.offBg, borderColor: 'transparent' } : { borderColor: theme.line },
             ]}>
             <Text style={[styles.dowText, { color: i === 0 ? theme.offText : theme.textSecondary }]}>{d}</Text>
           </View>
-        </View>
-      ))}
-      {Array.from({ length: leading }, (_, i) => (
-        <View key={`e${i}`} style={styles.cellWrap} />
-      ))}
-      {days.map((date) => (
-        <View key={date} style={styles.cellWrap}>
-          <DayCell
-            date={date}
-            data={data}
-            holiday={holidays.get(date)}
-            isToday={date === today}
-            onPress={() => openDay(date)}
-          />
+        ))}
+      </View>
+      {weeksOf(data.month).map((week) => (
+        <View key={week.find(Boolean)} style={styles.row}>
+          {week.map((date, i) =>
+            date ? (
+              <View key={date} style={styles.cell}>
+                <DayCell
+                  date={date}
+                  data={data}
+                  holiday={holidays.get(date)}
+                  isToday={date === today}
+                  onPress={() => openDay(date)}
+                />
+              </View>
+            ) : (
+              <View key={`e${i}`} style={styles.cell} />
+            ),
+          )}
         </View>
       ))}
     </View>
@@ -122,8 +135,9 @@ function DayCell({
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -2.5 },
-  cellWrap: { width: CELL, padding: 2.5 },
+  grid: { gap: 5 },
+  row: { flexDirection: 'row', gap: 5 },
+  cell: { flex: 1, minWidth: 0 },
   dow: { borderWidth: 1, borderRadius: 10, paddingVertical: 6, alignItems: 'center' },
   dowText: { fontSize: 12.5, fontWeight: 700 },
   day: {

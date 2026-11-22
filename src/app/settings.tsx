@@ -1,16 +1,18 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import Constants from 'expo-constants';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { isOlderVersion, useAppConfigQuery } from '@/api/queries';
 import { Screen } from '@/components/screen';
-import { Card, Field, Hint, Label, Segmented } from '@/components/ui';
+import { AccountCard } from '@/components/settings/account-card';
+import { JobsCard } from '@/components/settings/jobs-card';
+import { Button, Card, Hint, Segmented } from '@/components/ui';
 import { API_URL } from '@/config/env';
 import { useApp } from '@/data/app-store';
 import { DEDUCTION_PRESETS } from '@/data/deduction';
-import { monthLabel } from '@/data/month';
-import type { CompanySize, Job, ThemePreference } from '@/data/types';
+import { monthLabel, monthOf, todayKst } from '@/data/month';
+import type { ThemePreference } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmAsync } from '@/lib/confirm';
-import { formatNumber, formatWon, parseWon } from '@/lib/format';
 
 const THEMES: readonly { value: ThemePreference; label: string }[] = [
   { value: 'auto', label: 'Theo máy' },
@@ -18,19 +20,17 @@ const THEMES: readonly { value: ThemePreference; label: string }[] = [
   { value: 'dark', label: 'Tối' },
 ];
 
-const SIZES: readonly { value: CompanySize; label: string }[] = [
-  { value: '5plus', label: 'Từ 5 người' },
-  { value: 'under5', label: 'Dưới 5 người' },
-];
+const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 export default function SettingsScreen() {
-  const { job, settings, updateSettings, month, rules } = useApp();
-  const minimumWage = rules(month.slice(0, 4)).minimumWage;
+  const { settings, updateSettings, month, rules } = useApp();
+  const minimumWage = rules(monthOf(todayKst()).slice(0, 4)).minimumWage;
 
   return (
     <Screen title="Cài đặt" monthNav={false}>
-      {/* key: khi đổi nơi làm, ô nhập lấy lại giá trị của nơi làm mới */}
-      {job ? <JobCard key={job.id} job={job} minimumWage={minimumWage} /> : null}
+      <UpdateBanner />
+      <AccountCard />
+      <JobsCard minimumWage={minimumWage} />
 
       <Card title="Lương thực nhận">
         <Segmented
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
           options={DEDUCTION_PRESETS}
           onChange={(deductRate) => updateSettings({ deductRate })}
         />
-        <Hint>Chỉ để ước tính tiền về tài khoản; tỉ lệ thật tùy hợp đồng của bạn.</Hint>
+        <Hint>Chỉ để ước tính tiền về tài khoản; tỉ lệ thật tùy hợp đồng của bạn. Đồng bộ giữa các máy.</Hint>
       </Card>
 
       <Card title="Giao diện">
@@ -56,64 +56,26 @@ export default function SettingsScreen() {
   );
 }
 
-function JobCard({ job, minimumWage }: { job: Job; minimumWage: number }) {
-  const { updateJob, toast } = useApp();
-  const [name, setName] = useState(job.name);
-  const [wage, setWage] = useState(formatNumber(job.hourlyWage));
-
-  const saveName = () => {
-    const trimmed = name.trim().slice(0, 60);
-    if (!trimmed) return setName(job.name);
-    if (trimmed !== job.name) {
-      updateJob({ name: trimmed });
-      toast('Đã lưu tên nơi làm');
-    }
-  };
-
-  const saveWage = () => {
-    const v = Math.min(parseWon(wage), 1_000_000);
-    if (v <= 0) return setWage(formatNumber(job.hourlyWage));
-    if (v !== job.hourlyWage) {
-      updateJob({ hourlyWage: v });
-      toast('Đã lưu lương giờ');
-    }
-    setWage(formatNumber(v));
-  };
-
+/** Server báo phiên bản app tối thiểu (GET /v1/config) cao hơn bản đang chạy */
+function UpdateBanner() {
+  const theme = useTheme();
+  const config = useAppConfigQuery();
+  if (!config.data || !isOlderVersion(APP_VERSION, config.data.minAppVersion)) return null;
   return (
-    <Card title="Nơi làm việc" style={styles.first}>
-      <Field label="Tên" value={name} onChangeText={setName} onBlur={saveName} onSubmitEditing={saveName} maxLength={60} />
-      <Label>Mức lương giờ (₩)</Label>
-      <Field
-        label="Lương giờ"
-        keyboardType="number-pad"
-        value={wage}
-        onChangeText={(t) => setWage(t ? formatNumber(parseWon(t)) : '')}
-        onBlur={saveWage}
-        onSubmitEditing={saveWage}
-      />
-      <Hint>
-        Lương tối thiểu năm nay là {formatWon(minimumWage)}/giờ. Lương giờ mới áp dụng cho ngày công ghi từ bây giờ;
-        ngày đã ghi giữ lương giờ lúc ghi.
-      </Hint>
-      <Label>Quy mô công ty</Label>
-      <Segmented
-        label="Quy mô công ty"
-        value={job.companySize}
-        options={SIZES}
-        onChange={(companySize) => updateJob({ companySize })}
-      />
-    </Card>
+    <View style={[styles.banner, { backgroundColor: theme.warnBg }]}>
+      <Text style={[styles.bannerText, { color: theme.warnText }]}>
+        Có phiên bản mới ({config.data.minAppVersion}). Hãy cập nhật app để đồng bộ và tính lương đúng quy định mới.
+      </Text>
+    </View>
   );
 }
 
 function DataCard({ month }: { month: string }) {
-  const theme = useTheme();
-  const { clearMonth, loadDemo, toast } = useApp();
+  const { clearMonth, loadDemo, toast, job } = useApp();
   const label = monthLabel(month).toLowerCase();
 
   const onClear = async () => {
-    if (!(await confirmAsync('Xóa dữ liệu tháng?', `Xóa toàn bộ ngày công của ${label}.`))) return;
+    if (!(await confirmAsync('Xóa dữ liệu tháng?', `Xóa toàn bộ ngày công của ${label} (${job?.name}).`))) return;
     clearMonth(month);
     toast('Đã xóa dữ liệu tháng');
   };
@@ -126,16 +88,14 @@ function DataCard({ month }: { month: string }) {
 
   return (
     <Card title="Dữ liệu">
-      <Hint>Dữ liệu lưu trên máy này. Đăng nhập để sao lưu sẽ có ở bản sau.</Hint>
-      <Pressable onPress={onClear} accessibilityRole="button" style={[styles.danger, { borderColor: theme.line }]}>
-        <Text style={[styles.dangerText, { color: theme.offText }]}>Xóa dữ liệu {label}</Text>
-      </Pressable>
+      <Hint>Dữ liệu lưu trên máy này và dùng được khi không có mạng. Đăng nhập để sao lưu lên server.</Hint>
+      <Button label={`Xóa dữ liệu ${label}`} variant="danger" onPress={onClear} />
       {__DEV__ ? (
         <>
-          <Pressable onPress={onDemo} accessibilityRole="button" style={[styles.danger, { borderColor: theme.line }]}>
-            <Text style={[styles.dangerText, { color: theme.offText }]}>Nạp dữ liệu mẫu cho {label}</Text>
-          </Pressable>
-          <Hint>Server: {API_URL}</Hint>
+          <Button label={`Nạp dữ liệu mẫu cho ${label}`} variant="danger" onPress={onDemo} />
+          <Hint>
+            Server: {API_URL} · App {APP_VERSION}
+          </Hint>
         </>
       ) : null}
     </Card>
@@ -143,7 +103,6 @@ function DataCard({ month }: { month: string }) {
 }
 
 const styles = StyleSheet.create({
-  first: { marginTop: 4 },
-  danger: { marginTop: 10, borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  dangerText: { fontWeight: 600, fontSize: 15 },
+  banner: { borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },
+  bannerText: { fontSize: 13.5, fontWeight: 600 },
 });

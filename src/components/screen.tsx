@@ -36,7 +36,7 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const bottomInset = useBottomInset();
   const theme = useTheme();
-  const { month, setMonth } = useApp();
+  const { month, setMonth, job, jobs } = useApp();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -44,10 +44,7 @@ export function Screen({
       <View style={{ height: insets.top, backgroundColor: theme.primary }} />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: bottomInset + (showAddButton ? ADD_BUTTON_SPACE : 0) + Spacing.three },
-        ]}
+        contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled">
         <View style={[styles.header, { backgroundColor: theme.primary }]}>
           <View style={styles.headerIcon}>
@@ -69,6 +66,11 @@ export function Screen({
                 <NavButton icon="next" label="Tháng sau" onPress={() => setMonth(shiftMonth(month, 1))} />
               </View>
             ) : null}
+            {monthNav && jobs.length > 1 && job ? (
+              <Text style={[styles.jobLabel, { color: theme.onPrimary }]} numberOfLines={1}>
+                {job.name}
+              </Text>
+            ) : null}
           </View>
           <Pressable
             onPress={() => router.navigate('/settings')}
@@ -80,7 +82,17 @@ export function Screen({
           </Pressable>
         </View>
 
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>{children}</View>
+        {/* Đệm dưới nằm trong nền trắng để nền kéo tới tận thanh tab, không lộ dải xám */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.surface,
+              paddingBottom: bottomInset + (showAddButton ? ADD_BUTTON_SPACE : 0) + Spacing.three,
+            },
+          ]}>
+          {children}
+        </View>
       </ScrollView>
 
       {showAddButton ? <AddDayButton bottom={bottomInset + Spacing.three} /> : null}
@@ -153,6 +165,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 21, lineHeight: 26, fontWeight: 800 },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   monthLabel: { fontSize: 15, opacity: 0.92, minWidth: 132, textAlign: 'center' },
+  jobLabel: { fontSize: 12.5, opacity: 0.8, marginTop: 2 },
   navButton: {
     width: 28,
     height: 28,

@@ -45,4 +45,6 @@ Docs: https://docs.expo.dev/eas/index.md
 - App "Lịch Lương Hàn Quốc". Đặc tả và API ở repo server `../salary` (`docs/spec.md`, `openspec/specs/`).
 - `src/payroll/` và `src/schemas/` là bản chép từ server: không sửa trực tiếp, chạy `pnpm sync-shared` để cập nhật.
 - Import trong hai thư mục đó ghi rõ đuôi `.ts` (tsconfig bật `allowImportingTsExtensions`).
-- Dùng pnpm (`pnpm install`, `pnpm typecheck`, `pnpm lint`); thêm gói bằng `npx expo install`.
+- Dùng pnpm (`pnpm install`, `pnpm typecheck`, `pnpm lint`, `pnpm test`); thêm gói bằng `npx expo install`.
+- `src/api/schema.d.ts` sinh từ `openapi.json` của server bằng `pnpm gen:api`; không sửa tay. Gọi API qua `api`/`authed` trong `src/api/client.ts`.
+- Dữ liệu chấm công đi qua store Zustand (`src/data/store.ts`) và các hàm trong `src/data/actions.ts` (đánh dấu dirty để đồng bộ); không gọi REST trực tiếp cho ngày công, nơi làm, 주휴수당: chúng đồng bộ qua `src/sync`.

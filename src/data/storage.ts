@@ -9,10 +9,28 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 function db(): Promise<SQLite.SQLiteDatabase> {
   dbPromise ??= SQLite.openDatabaseAsync(DB_NAME).then(async (d) => {
+    // Chờ tối đa 5 giây nếu file đang bị khóa, thay vì báo lỗi ngay
+    await d.execAsync('PRAGMA busy_timeout = 5000;');
     await migrate(d);
     return d;
   });
   return dbPromise;
+}
+
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Mọi lần ghi chạy tuần tự trong một transaction trên CÙNG một kết nối.
+ * Không dùng withExclusiveTransactionAsync: nó mở kết nối riêng cho mỗi lần ghi, nên hai lần ghi cùng lúc
+ * (ví dụ lưu ngày công trong lúc lưu đệm quy định năm) làm lần sau lỗi "database is locked" và dữ liệu bị mất.
+ */
+function write(task: (d: SQLite.SQLiteDatabase) => Promise<void>): Promise<void> {
+  const run = writeQueue.then(async () => {
+    const d = await db();
+    await d.withTransactionAsync(() => task(d));
+  });
+  writeQueue = run.catch(() => {});
+  return run;
 }
 
 async function migrate(d: SQLite.SQLiteDatabase): Promise<void> {
@@ -141,8 +159,7 @@ export const storage: LocalStorage = {
   },
 
   async putJobs(rows: Job[]) {
-    const d = await db();
-    await d.withExclusiveTransactionAsync(async (tx) => {
+    await write(async (tx) => {
       for (const j of rows) {
         await tx.runAsync(
           `INSERT OR REPLACE INTO jobs (id, name, hourly_wage, company_size, updated_at, deleted_at, dirty)
@@ -154,8 +171,7 @@ export const storage: LocalStorage = {
   },
 
   async putWorkDays(rows: WorkDayRecord[]) {
-    const d = await db();
-    await d.withExclusiveTransactionAsync(async (tx) => {
+    await write(async (tx) => {
       for (const w of rows) {
         await tx.runAsync(
           `INSERT OR REPLACE INTO work_days
@@ -182,8 +198,7 @@ export const storage: LocalStorage = {
   },
 
   async putWeeklyPays(rows: WeeklyPayRecord[]) {
-    const d = await db();
-    await d.withExclusiveTransactionAsync(async (tx) => {
+    await write(async (tx) => {
       for (const w of rows) {
         await tx.runAsync(
           `INSERT OR REPLACE INTO weekly_holiday_pays (id, job_id, week_start, amount, updated_at, deleted_at, dirty)
@@ -195,7 +210,8 @@ export const storage: LocalStorage = {
   },
 
   async putKv(key: string, value: string) {
-    const d = await db();
-    await d.runAsync('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', [key, value]);
+    await write(async (tx) => {
+      await tx.runAsync('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', [key, value]);
+    });
   },
 };

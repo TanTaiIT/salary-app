@@ -44,6 +44,10 @@ export interface Settings {
   activeJobId: string | null;
   /** Tỉ lệ khấu trừ để ước tính lương thực nhận, phần trăm (0 = không khấu trừ) */
   deductRate: number;
+  /** Lúc đổi deductRate trên máy (ISO); null là chưa đổi lần nào. Đồng bộ theo bản sửa mới nhất thắng. */
+  deductRateUpdatedAt: string | null;
+  /** deductRate đã đổi mà chưa đồng bộ */
+  settingsDirty: boolean;
   theme: ThemePreference;
   /** Lần mở app đầu tiên (ISO), dùng cho cấp quảng cáo và đồng bộ */
   firstOpenAt: string | null;
@@ -52,9 +56,28 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   activeJobId: null,
   deductRate: 0,
+  deductRateUpdatedAt: null,
+  settingsDirty: false,
   theme: 'auto',
   firstOpenAt: null,
 };
+
+/** Bản ghi server từ chối khi đồng bộ (trùng ngày, trùng tuần, nơi làm không tồn tại…), giữ lại để người dùng xử lý. */
+export interface SyncRejection {
+  kind: 'job' | 'workDay' | 'weeklyPay';
+  id: string;
+  code: string;
+}
+
+/** Trạng thái đồng bộ lưu trên máy */
+export interface SyncMeta {
+  /** serverTime lần đồng bộ trước; null là chưa đồng bộ (gửi toàn bộ) */
+  since: string | null;
+  lastSyncedAt: string | null;
+  rejections: SyncRejection[];
+}
+
+export const DEFAULT_SYNC_META: SyncMeta = { since: null, lastSyncedAt: null, rejections: [] };
 
 /** Toàn bộ dữ liệu trên máy, nạp một lần khi mở app. */
 export interface Snapshot {

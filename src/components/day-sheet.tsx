@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,7 +40,8 @@ export function DaySheet() {
 
   return (
     <Modal visible={!!editingDate} transparent animationType="fade" onRequestClose={closeDay} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+      {/* Android chạy edge-to-edge: cửa sổ không tự co khi bàn phím mở, nên cả hai nền tảng đều đẩy bằng padding */}
+      <KeyboardAvoidingView behavior="padding" style={styles.fill}>
         <Pressable
           style={[StyleSheet.absoluteFill, { backgroundColor: theme.scrim }]}
           onPress={closeDay}
@@ -110,8 +110,11 @@ function SheetBody({ date }: { date: string }) {
     <Animated.View
       entering={SlideInDown.duration(260)}
       accessibilityViewIsModal
-      style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: insets.bottom + 16 }]}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetContent}>
+      style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: insets.bottom + 8 }]}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        style={styles.scroll}
+        contentContainerStyle={styles.sheetContent}>
         <View style={[styles.grab, { backgroundColor: theme.line }]} />
         <View style={styles.head}>
           <Text style={[styles.title, { color: theme.text }]} accessibilityRole="header">
@@ -179,7 +182,10 @@ function SheetBody({ date }: { date: string }) {
             Giờ làm + trợ cấp{weeklyAmount > 0 ? ' + nghỉ tuần' : ''}
           </Text>
         </View>
+      </ScrollView>
 
+      {/* Chân cố định: nút Lưu luôn thấy được, không phải cuộn (bảng dài hơn màn hình trên máy nhỏ) */}
+      <View style={[styles.footer, { borderTopColor: theme.line }]}>
         <Pressable
           onPress={onSave}
           accessibilityRole="button"
@@ -191,7 +197,7 @@ function SheetBody({ date }: { date: string }) {
             <Text style={[styles.ghostText, { color: theme.offText }]}>Xóa ngày công này</Text>
           </Pressable>
         ) : null}
-      </ScrollView>
+      </View>
     </Animated.View>
   );
 }
@@ -263,7 +269,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
   },
+  scroll: { flexShrink: 1 },
   sheetContent: { paddingHorizontal: 16, paddingTop: 10 },
+  footer: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   grab: { width: 40, height: 5, borderRadius: 9, alignSelf: 'center', marginBottom: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontSize: 18, fontWeight: 800, flexShrink: 1 },

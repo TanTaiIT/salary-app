@@ -1,8 +1,4 @@
-import { z } from 'zod';
-
-import { API_URL } from '@/config/env';
 import { DEFAULT_WEEKLY_RULE, type WeeklyHolidayRule } from '@/payroll/index.ts';
-import { RuleSetInput } from '@/schemas/index.ts';
 
 export interface Holiday {
   date: string;
@@ -17,7 +13,7 @@ export interface Rules {
 
 /**
  * Bản dự phòng khi chưa tải được từ server (mở app lần đầu không có mạng).
- * Khớp scripts/seed-rules.ts của server; server vẫn là nguồn chính.
+ * Khớp scripts/seed-rules.ts của server; server (GET /v1/rules/:year) vẫn là nguồn chính.
  */
 const BUNDLED: Record<string, Rules> = {
   '2026': {
@@ -53,24 +49,4 @@ const LATEST_BUNDLED = BUNDLED['2026']!;
 /** Quy định của một năm: bản đã tải (cache) → bản dựng sẵn → lương tối thiểu mới nhất, không có ngày lễ. */
 export function rulesFor(year: string, cache: Record<string, Rules>): Rules {
   return cache[year] ?? BUNDLED[year] ?? { ...LATEST_BUNDLED, holidays: [] };
-}
-
-const RulesResponse = RuleSetInput.and(z.object({ year: z.coerce.string() }));
-
-/** GET /v1/rules/:year. Trả null khi lỗi mạng, chưa có quy định (404) hoặc dữ liệu sai. */
-export async function fetchRules(year: string, timeoutMs = 6000): Promise<Rules | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${API_URL}/v1/rules/${year}`, { signal: controller.signal });
-    if (!res.ok) return null;
-    const parsed = RulesResponse.safeParse(await res.json());
-    if (!parsed.success) return null;
-    const { minimumWage, holidays, weeklyHoliday } = parsed.data;
-    return { minimumWage, holidays, weeklyHoliday };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
 }

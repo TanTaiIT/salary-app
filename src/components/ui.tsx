@@ -1,6 +1,15 @@
 // Khối giao diện nhỏ dùng chung: thẻ, ô nhập, nút chọn một trong nhiều.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+  type ViewStyle,
+} from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -69,6 +78,48 @@ export function Segmented<T extends string | number>({
   );
 }
 
+/** Nút bấm: primary (nền xanh), secondary (viền), danger (chữ đỏ, viền) */
+export function Button({
+  label,
+  onPress,
+  variant = 'secondary',
+  disabled = false,
+  busy = false,
+}: {
+  label: string;
+  onPress: () => void;
+  variant?: 'primary' | 'secondary' | 'danger';
+  disabled?: boolean;
+  busy?: boolean;
+}) {
+  const theme = useTheme();
+  const primary = variant === 'primary';
+  const off = disabled || busy;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={off}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: off, busy }}
+      style={({ pressed }) => [
+        styles.button,
+        primary
+          ? { backgroundColor: theme.primary, borderColor: theme.primary }
+          : { backgroundColor: theme.surface, borderColor: theme.line },
+        (pressed || off) && { opacity: 0.6 },
+      ]}>
+      {busy ? <ActivityIndicator color={primary ? theme.onPrimary : theme.textSecondary} style={styles.spinner} /> : null}
+      <Text
+        style={[
+          styles.buttonText,
+          { color: primary ? theme.onPrimary : variant === 'danger' ? theme.offText : theme.text },
+        ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function Hint({ children }: { children: ReactNode }) {
   const theme = useTheme();
   return <Text style={[styles.hint, { color: theme.textSecondary }]}>{children}</Text>;
@@ -95,5 +146,17 @@ const styles = StyleSheet.create({
   segment: { borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, flexGrow: 1 },
   segmentText: { fontSize: 14, fontWeight: 600, textAlign: 'center' },
   hint: { fontSize: 12.5, lineHeight: 18, marginTop: 6 },
+  button: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  buttonText: { fontWeight: 600, fontSize: 15 },
+  spinner: { marginRight: 2 },
   label: { fontSize: 13, marginTop: 12, marginBottom: 6 },
 });
