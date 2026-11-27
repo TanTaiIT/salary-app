@@ -25,7 +25,8 @@ export const queryClient = new QueryClient({
 export const queryKeys = {
   rules: (year: string) => ['rules', year] as const,
   config: ['config'] as const,
-  me: ['me'] as const,
+  /** Gắn với id người dùng: đăng xuất hay đổi tài khoản thì không dùng lại thông tin (kể cả quyền admin) của phiên trước */
+  me: (userId: string | null) => ['me', userId] as const,
 };
 
 /**
@@ -61,10 +62,10 @@ export function useAppConfigQuery() {
 
 /** Tài khoản đang đăng nhập (tên, cách đăng nhập, lần mở app đầu tiên) */
 export function useMeQuery() {
-  const signedIn = useSession((s) => s.status === 'signedIn');
+  const userId = useSession((s) => (s.status === 'signedIn' ? (s.user?.id ?? null) : null));
   return useQuery({
-    queryKey: queryKeys.me,
-    enabled: signedIn,
+    queryKey: queryKeys.me(userId),
+    enabled: userId !== null,
     queryFn: () => authed(() => api.GET('/v1/me')),
   });
 }

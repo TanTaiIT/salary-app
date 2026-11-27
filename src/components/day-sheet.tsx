@@ -13,6 +13,7 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icon';
+import { Toast } from '@/components/toast';
 import { Field } from '@/components/ui';
 import { HourLabel, HourName, MaxContentWidth } from '@/constants/theme';
 import { useApp } from '@/data/app-store';
@@ -32,6 +33,8 @@ import {
 } from '@/payroll/index.ts';
 
 const MAX_DAY_HOURS = 24;
+/** Toast trong bảng chấm công nằm trên chân bảng (nút Lưu, Xóa) */
+const SHEET_TOAST_BOTTOM = 170;
 
 /** Bảng chấm công trượt từ dưới lên, mở cho ngày `editingDate` trong store. */
 export function DaySheet() {
@@ -49,6 +52,8 @@ export function DaySheet() {
         />
         {editingDate ? <SheetBody key={editingDate} date={editingDate} /> : null}
       </KeyboardAvoidingView>
+      {/* Modal là cửa sổ riêng che Toast ở gốc app, nên lỗi khi lưu (quá 24 giờ, trùng ngày) phải hiện ngay trong Modal */}
+      <Toast bottom={SHEET_TOAST_BOTTOM} />
     </Modal>
   );
 }

@@ -5,11 +5,15 @@ import { useBottomInset } from '@/components/screen';
 import { useApp } from '@/data/app-store';
 import { useTheme } from '@/hooks/use-theme';
 
-/** Thông báo ngắn ("Đã lưu ngày công"), nằm trên nút Thêm ngày công. */
-export function Toast() {
+/**
+ * Thông báo ngắn ("Đã lưu ngày công"), mặc định nằm trên nút Thêm ngày công.
+ * `bottom`: khoảng cách tới đáy màn hình, dùng khi đặt Toast trong một Modal (Modal che Toast ở gốc app).
+ */
+export function Toast({ bottom: fixedBottom }: { bottom?: number } = {}) {
   const { toastMessage } = useApp();
   const theme = useTheme();
-  const bottom = useBottomInset() + 90;
+  const defaultBottom = useBottomInset() + 90;
+  const bottom = fixedBottom ?? defaultBottom;
 
   return (
     <View pointerEvents="none" style={[styles.wrap, { bottom }]}>

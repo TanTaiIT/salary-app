@@ -18,6 +18,8 @@ const REJECT_REASON: Record<string, string> = {
   duplicate_day: 'trùng ngày với ngày công đã có trên máy khác',
   duplicate_week: 'trùng tuần với khoản 주휴수당 đã có trên máy khác',
   unknown_job: 'thuộc nơi làm việc không còn tồn tại',
+  // Server từ chối id đã thuộc tài khoản khác (máy này từng đồng bộ bằng tài khoản khác)
+  not_found: 'đã được đồng bộ bằng một tài khoản khác trên máy này',
 };
 
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Có lỗi, hãy thử lại');
