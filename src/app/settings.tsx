@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { isOlderVersion, useAppConfigQuery } from '@/api/queries';
+import { AdminCard } from '@/components/admin/admin-card';
 import { Screen } from '@/components/screen';
 import { AccountCard } from '@/components/settings/account-card';
 import { JobsCard } from '@/components/settings/jobs-card';
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
     <Screen title="Cài đặt" monthNav={false}>
       <UpdateBanner />
       <AccountCard />
+      <AdminCard />
       <JobsCard minimumWage={minimumWage} />
 
       <Card title="Lương thực nhận">

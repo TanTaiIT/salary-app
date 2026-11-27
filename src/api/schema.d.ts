@@ -634,6 +634,11 @@ export interface components {
             name: string;
             /** @enum {string} */
             provider: "dev" | "apple" | "google" | "kakao";
+            /**
+             * @description Chỉ để app hiện trang quản trị; server luôn kiểm tra quyền ở route admin
+             * @enum {string}
+             */
+            role: "user" | "admin";
             /** Format: date-time */
             firstOpenAt: string;
             settings: {

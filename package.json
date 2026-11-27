@@ -55,7 +55,7 @@
     "typecheck": "tsc --noEmit && tsc -p test",
     "sync-shared": "node scripts/sync-shared.mjs",
     "gen:api": "node scripts/gen-api.mjs",
-    "test": "node --test --import ./test/loader.mjs test/merge.test.ts",
+    "test": "node --test --import ./test/loader.mjs test/merge.test.ts test/admin-rules.test.ts",
     "test:e2e": "node --test --import ./test/loader.mjs test/sync.e2e.test.ts"
   },
   "private": true
