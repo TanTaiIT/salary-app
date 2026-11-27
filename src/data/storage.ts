@@ -3,7 +3,8 @@ import * as SQLite from 'expo-sqlite';
 import type { Job, LocalStorage, Snapshot, WeeklyPayRecord, WorkDayRecord } from './types';
 
 const DB_NAME = 'llhq.db';
-const SCHEMA_VERSION = 1;
+/** 1: bảng ban đầu; 2: thêm work_days.note */
+const SCHEMA_VERSION = 2;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -33,12 +34,30 @@ function write(task: (d: SQLite.SQLiteDatabase) => Promise<void>): Promise<void>
   return run;
 }
 
+/**
+ * Nâng cấp từng bước theo PRAGMA user_version, nên máy đang có dữ liệu bản cũ chỉ chạy các bước còn thiếu.
+ * Mỗi bước chạy trong một transaction cùng lệnh đặt user_version: lỗi giữa chừng thì lần mở sau chạy lại bước đó.
+ */
 async function migrate(d: SQLite.SQLiteDatabase): Promise<void> {
   const row = await d.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  if ((row?.user_version ?? 0) >= SCHEMA_VERSION) return;
+  const version = row?.user_version ?? 0;
+  if (version >= SCHEMA_VERSION) return;
 
+  // journal_mode không đổi được trong transaction
+  if (version < 1) await d.execAsync('PRAGMA journal_mode = WAL;');
+  if (version < 1) await d.withTransactionAsync(() => createV1(d));
+  if (version < 2) {
+    await d.withTransactionAsync(async () => {
+      await d.execAsync(`
+        ALTER TABLE work_days ADD COLUMN note TEXT NOT NULL DEFAULT '';
+        PRAGMA user_version = 2;
+      `);
+    });
+  }
+}
+
+async function createV1(d: SQLite.SQLiteDatabase): Promise<void> {
   await d.execAsync(`
-    PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
@@ -77,7 +96,7 @@ async function migrate(d: SQLite.SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
-    PRAGMA user_version = ${SCHEMA_VERSION};
+    PRAGMA user_version = 1;
   `);
 }
 
@@ -102,6 +121,7 @@ interface WorkDayRow {
   x3: number;
   allowance: number;
   wage_snapshot: number;
+  note: string;
   updated_at: string;
   deleted_at: string | null;
   dirty: number;
@@ -141,6 +161,7 @@ export const storage: LocalStorage = {
         hours: { x1: r.x1, x1_5: r.x1_5, x2: r.x2, x2_5: r.x2_5, x3: r.x3 },
         allowance: r.allowance,
         wageSnapshot: r.wage_snapshot,
+        note: r.note ?? '',
         updatedAt: r.updated_at,
         deletedAt: r.deleted_at,
         dirty: r.dirty === 1,
@@ -175,8 +196,8 @@ export const storage: LocalStorage = {
       for (const w of rows) {
         await tx.runAsync(
           `INSERT OR REPLACE INTO work_days
-             (id, job_id, date, x1, x1_5, x2, x2_5, x3, allowance, wage_snapshot, updated_at, deleted_at, dirty)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, job_id, date, x1, x1_5, x2, x2_5, x3, allowance, wage_snapshot, note, updated_at, deleted_at, dirty)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             w.id,
             w.jobId,
@@ -188,6 +209,7 @@ export const storage: LocalStorage = {
             w.hours.x3,
             w.allowance,
             w.wageSnapshot,
+            w.note,
             w.updatedAt,
             w.deletedAt,
             w.dirty ? 1 : 0,

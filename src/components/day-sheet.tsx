@@ -31,6 +31,7 @@ import {
   type HourKey,
   type Hours,
 } from '@/payroll/index.ts';
+import { NOTE_MAX } from '@/schemas/index.ts';
 
 const MAX_DAY_HOURS = 24;
 /** Toast trong bảng chấm công nằm trên chân bảng (nút Lưu, Xóa) */
@@ -75,6 +76,7 @@ function SheetBody({ date }: { date: string }) {
     return Object.fromEntries(HOUR_KEYS.map((k) => [k, h[k] ? formatDecimal(h[k]) : ''])) as Record<HourKey, string>;
   });
   const [allowance, setAllowance] = useState(existing?.allowance ?? 0);
+  const [note, setNote] = useState(existing?.note ?? '');
   const [removeWeekly, setRemoveWeekly] = useState(false);
 
   const hours: Hours = emptyHours();
@@ -94,7 +96,7 @@ function SheetBody({ date }: { date: string }) {
     }
     const rounded = emptyHours();
     for (const k of HOUR_KEYS) rounded[k] = Math.round(hours[k] * 2) / 2;
-    const result = saveDay(date, { hours: rounded, allowance });
+    const result = saveDay(date, { hours: rounded, allowance, note });
     if (!result.ok) {
       toast(result.message);
       return;
@@ -167,6 +169,26 @@ function SheetBody({ date }: { date: string }) {
           placeholder="0 ₩"
           value={allowance ? formatNumber(allowance) : ''}
           onChangeText={(t) => setAllowance(Math.min(parseWon(t), 100_000_000))}
+        />
+
+        <View style={styles.noteHead}>
+          <Text style={[styles.section, { color: theme.text }]}>Ghi chú</Text>
+          {note.length > NOTE_MAX - 40 ? (
+            <Text style={[styles.small, { color: theme.textSecondary }]}>
+              {note.length}/{NOTE_MAX}
+            </Text>
+          ) : null}
+        </View>
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          maxLength={NOTE_MAX}
+          multiline
+          placeholder="Ví dụ: ca đêm, nghỉ ốm, đổi ca với đồng nghiệp…"
+          placeholderTextColor={theme.textSecondary}
+          accessibilityLabel="Ghi chú cho ngày công"
+          textAlignVertical="top"
+          style={[styles.note, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
         />
 
         {weekly && !removeWeekly ? (
@@ -286,6 +308,8 @@ const styles = StyleSheet.create({
   wageValue: { fontSize: 20, fontWeight: 800 },
   small: { fontSize: 12 },
   section: { fontSize: 14, fontWeight: 700, marginTop: 14, marginBottom: 8 },
+  noteHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  note: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, minHeight: 72 },
   row: { borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, gap: 6 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowName: { fontSize: 15, fontWeight: 700 },

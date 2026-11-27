@@ -7,8 +7,11 @@ type S = components['schemas'];
 type SyncRequest = S['SyncRequest'];
 type SyncResponse = S['SyncResponse'];
 
-/** Server nhận tối đa 500 bản mỗi loại trong một gói */
-export const BATCH = 500;
+/**
+ * Server nhận tối đa SYNC_BATCH_MAX (src/schemas) bản mỗi loại trong một gói; test/merge.test.ts kiểm tra hai số này bằng nhau.
+ * Không import từ schemas để file này không kéo theo zod.
+ */
+export const BATCH = 250;
 
 interface Syncable {
   id: string;
@@ -33,6 +36,7 @@ export const workDayToChange = (d: WorkDayRecord): SyncRequest['workDays'][numbe
     hours: d.hours,
     allowance: d.allowance,
     wageSnapshot: d.wageSnapshot,
+    note: d.note,
     updatedAt: d.updatedAt,
   },
   deletedAt: d.deletedAt,
@@ -61,6 +65,8 @@ export const workDayFromApi = (d: SyncResponse['workDays'][number]): WorkDayReco
   hours: d.hours,
   allowance: d.allowance,
   wageSnapshot: d.wageSnapshot,
+  // Server cũ (trước khi có ghi chú) không trả trường này
+  note: d.note ?? '',
   updatedAt: d.updatedAt,
   deletedAt: d.deletedAt,
   dirty: false,

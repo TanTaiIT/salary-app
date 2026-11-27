@@ -14,9 +14,9 @@ export default function HistoryScreen() {
   const { openDay } = useApp();
   const { data } = useMonth();
 
-  // Ngày có ngày công hoặc 주휴수당, mới nhất lên đầu.
+  // Ngày có ngày công, 주휴수당 hoặc ghi chú, mới nhất lên đầu.
   const dates = [...new Set([...data.days.keys(), ...data.weeklyBySunday.keys()])]
-    .filter((d) => hasWork(data.days.get(d)) || data.weeklyBySunday.has(d))
+    .filter((d) => hasWork(data.days.get(d)) || data.weeklyBySunday.has(d) || !!data.days.get(d)?.note)
     .sort()
     .reverse();
 
@@ -34,6 +34,8 @@ export default function HistoryScreen() {
             const parts = day ? HOUR_KEYS.filter((k) => day.hours[k] > 0).map((k) => `${formatHours(day.hours[k])} x${HourLabel[k]}`) : [];
             if (day && day.allowance > 0) parts.push(`trợ cấp ${formatK(day.allowance)}`);
             if (weekly) parts.push(`nghỉ tuần ${formatK(weekly.amount)}`);
+            const total = dayCellTotal(data, date);
+            const noteOnly = !hasWork(day) && !weekly;
             return (
               <Pressable
                 key={date}
@@ -46,11 +48,18 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.info}>
                   <Text style={[styles.infoTitle, { color: theme.text }]}>
-                    {formatHours(day ? totalHours(day.hours) : 0)} làm việc
+                    {noteOnly ? 'Không có giờ làm' : `${formatHours(day ? totalHours(day.hours) : 0)} làm việc`}
                   </Text>
-                  <Text style={[styles.infoParts, { color: theme.textSecondary }]}>{parts.join(', ')}</Text>
+                  {parts.length > 0 ? (
+                    <Text style={[styles.infoParts, { color: theme.textSecondary }]}>{parts.join(', ')}</Text>
+                  ) : null}
+                  {day?.note ? (
+                    <Text numberOfLines={2} style={[styles.note, { color: theme.text }]}>
+                      “{day.note}”
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={[styles.value, { color: theme.money }]}>{formatWon(dayCellTotal(data, date))}</Text>
+                {total > 0 ? <Text style={[styles.value, { color: theme.money }]}>{formatWon(total)}</Text> : null}
               </Pressable>
             );
           })}
@@ -77,5 +86,6 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   infoTitle: { fontSize: 14, fontWeight: 600 },
   infoParts: { fontSize: 13 },
+  note: { fontSize: 13, fontStyle: 'italic', marginTop: 2 },
   value: { fontWeight: 800, fontSize: 14 },
 });

@@ -52,7 +52,7 @@ describe('Đồng bộ hai máy với server thật', { skip: reachable ? false 
 
   test('máy A: dùng khi chưa đăng nhập, đăng nhập lần đầu thì đẩy hết lên server', async () => {
     jobA = getData().settings.activeJobId!;
-    assert.equal(actions.saveDay('2026-11-17', { hours: hours(8), allowance: 0 }).ok, true);
+    assert.equal(actions.saveDay('2026-11-17', { hours: hours(8), allowance: 0, note: '' }).ok, true);
     actions.setWeeklyPay('2026-11-16', 30_960);
     actions.updateSettings({ deductRate: 3.3 });
     assert.ok(dirtyCount() >= 3);
@@ -88,8 +88,8 @@ describe('Đồng bộ hai máy với server thật', { skip: reachable ? false 
 
   test('bản sửa mới nhất thắng: máy A sửa offline từ trước, đồng bộ sau thì nhận bản của máy B', async () => {
     const editedBefore = new Date(Date.now() - 60_000).toISOString();
-    assert.equal(actions.saveDay('2026-11-17', { hours: hours(8), allowance: 5_000 }).ok, true);
-    actions.saveDay('2026-11-18', { hours: hours(6), allowance: 0 });
+    assert.equal(actions.saveDay('2026-11-17', { hours: hours(8), allowance: 5_000, note: '' }).ok, true);
+    actions.saveDay('2026-11-18', { hours: hours(6), allowance: 0, note: '' });
     await syncNow();
     assert.equal(dirtyCount(), 0);
     const deviceB = structuredClone(getData());
@@ -107,9 +107,32 @@ describe('Đồng bộ hai máy với server thật', { skip: reachable ? false 
     void deviceB;
   });
 
+  test('ghi chú: lên server cùng ngày công; ngày chỉ có ghi chú được lưu nhưng không tính là ngày làm', async () => {
+    const before17 = alive(getData().workDays).find((d) => d.date === '2026-11-17')!;
+    assert.equal(actions.saveDay('2026-11-17', { hours: before17.hours, allowance: before17.allowance, note: '  Ca đêm  ' }).ok, true);
+    assert.equal(actions.saveDay('2026-11-21', { hours: hours(0), allowance: 0, note: 'Nghỉ ốm' }).ok, true);
+    await syncNow();
+    assert.equal(dirtyCount(), 0);
+    assert.deepEqual(getData().sync.rejections, []);
+
+    const month = await authed(() => api.GET('/v1/work-days', { params: { query: { month: '2026-11', jobId: jobA } } }));
+    const byDate = new Map(month.items.map((d) => [d.date, d]));
+    assert.equal(byDate.get('2026-11-17')?.note, 'Ca đêm', 'bỏ khoảng trắng hai đầu');
+    assert.equal(byDate.get('2026-11-21')?.note, 'Nghỉ ốm');
+    assert.equal(byDate.get('2026-11-18')?.note, '');
+    assert.equal(month.summary.workDays, 2, 'ngày 21 chỉ có ghi chú, không tính là ngày làm');
+
+    // Xóa ghi chú và không còn giờ làm: ngày 21 bị xóa hẳn như trước đây
+    actions.saveDay('2026-11-21', { hours: hours(0), allowance: 0, note: '   ' });
+    await syncNow();
+    const after = await authed(() => api.GET('/v1/work-days', { params: { query: { month: '2026-11', jobId: jobA } } }));
+    assert.ok(!after.items.some((d) => d.date === '2026-11-21'));
+    deviceA = structuredClone(getData());
+  });
+
   test('trùng ngày (tạo trên hai máy khi offline) bị từ chối, chọn giữ bản server thì hết lỗi', async () => {
     writeWorkDays([{
-      id: randomUUID(), jobId: jobA, date: '2026-11-18', hours: hours(4), allowance: 0, wageSnapshot: 10_320,
+      id: randomUUID(), jobId: jobA, date: '2026-11-18', hours: hours(4), allowance: 0, wageSnapshot: 10_320, note: '',
       updatedAt: new Date().toISOString(), deletedAt: null, dirty: true,
     }]);
     await syncNow();
@@ -127,7 +150,7 @@ describe('Đồng bộ hai máy với server thật', { skip: reachable ? false 
   test('bản trỏ tới nơi làm không tồn tại (unknown_job) bỏ được, không kẹt cảnh báo', async () => {
     // Gặp thật trên máy ảo: ngày công ghi được nhưng nơi làm của nó ghi thất bại (SQLite bị khóa)
     writeWorkDays([{
-      id: randomUUID(), jobId: randomUUID(), date: '2026-11-20', hours: hours(8), allowance: 0, wageSnapshot: 10_320,
+      id: randomUUID(), jobId: randomUUID(), date: '2026-11-20', hours: hours(8), allowance: 0, wageSnapshot: 10_320, note: '',
       updatedAt: new Date().toISOString(), deletedAt: null, dirty: true,
     }]);
     await syncNow();
@@ -150,7 +173,7 @@ describe('Đồng bộ hai máy với server thật', { skip: reachable ? false 
     const r = actions.addJob('Nhà máy B', 11_000);
     assert.equal(r.ok, true);
     const jobB = getData().settings.activeJobId!;
-    actions.saveDay('2026-11-19', { hours: hours(8), allowance: 0 });
+    actions.saveDay('2026-11-19', { hours: hours(8), allowance: 0, note: '' });
     await syncNow();
     assert.equal(actions.deleteJob(jobB).ok, true);
     await syncNow();

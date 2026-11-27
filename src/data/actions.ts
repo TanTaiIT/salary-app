@@ -25,6 +25,8 @@ import type { CompanySize, Job, Settings, WorkDayRecord } from './types';
 export interface DayInput {
   hours: Hours;
   allowance: number;
+  /** Ghi chú, đã hoặc chưa bỏ khoảng trắng hai đầu đều được */
+  note: string;
 }
 
 export type Result = { ok: true } | { ok: false; message: string };
@@ -69,12 +71,14 @@ export async function initData(): Promise<void> {
 
 // ---------- Ngày công ----------
 
-export function saveDay(date: string, { hours, allowance }: DayInput): Result {
+export function saveDay(date: string, { hours, allowance, note: rawNote }: DayInput): Result {
   const job = activeJob();
   if (!job) return { ok: false, message: 'Chưa có nơi làm việc' };
   const existing = findDay(job.id, date);
   const now = nowIso();
-  const empty = Object.values(hours).every((h) => h === 0) && allowance === 0;
+  const note = rawNote.trim();
+  // Không giờ, không trợ cấp, không ghi chú: coi như xóa ngày công. Ngày chỉ có ghi chú (ví dụ "Nghỉ ốm") vẫn được lưu.
+  const empty = Object.values(hours).every((h) => h === 0) && allowance === 0 && note === '';
   if (empty) {
     if (existing) {
       writeWorkDays([tombstone(existing, now)]);
@@ -83,7 +87,7 @@ export function saveDay(date: string, { hours, allowance }: DayInput): Result {
     return { ok: true };
   }
   const record: WorkDayRecord = existing
-    ? { ...existing, hours, allowance, updatedAt: now, dirty: true }
+    ? { ...existing, hours, allowance, note, updatedAt: now, dirty: true }
     : {
         id: randomUUID(),
         jobId: job.id,
@@ -91,6 +95,7 @@ export function saveDay(date: string, { hours, allowance }: DayInput): Result {
         hours,
         allowance,
         wageSnapshot: job.hourlyWage,
+        note,
         updatedAt: now,
         deletedAt: null,
         dirty: true,
@@ -164,7 +169,7 @@ export function loadDemo(month: string): void {
     } else {
       hours.x1 = 8;
     }
-    rows.push({ id: randomUUID(), jobId: job.id, date, hours, allowance, wageSnapshot: job.hourlyWage, updatedAt: now, deletedAt: null, dirty: true });
+    rows.push({ id: randomUUID(), jobId: job.id, date, hours, allowance, wageSnapshot: job.hourlyWage, note: '', updatedAt: now, deletedAt: null, dirty: true });
   }
   writeWorkDays(rows);
   notifyLocalChange();

@@ -470,6 +470,8 @@ export interface components {
             allowance: number;
             /** @description Số nguyên won */
             wageSnapshot: number;
+            /** @description Ghi chú của người dùng, rỗng nếu không có */
+            note: string;
             /** Format: date-time */
             updatedAt: string;
             deletedAt: string | null;
@@ -500,6 +502,8 @@ export interface components {
                 allowance: number;
                 /** @description Số nguyên won */
                 wageSnapshot: number;
+                /** @description Ghi chú của người dùng, rỗng nếu không có */
+                note: string;
                 /** Format: date-time */
                 updatedAt: string;
                 deletedAt: string | null;
@@ -596,6 +600,8 @@ export interface components {
                 allowance: number;
                 /** @description Số nguyên won */
                 wageSnapshot: number;
+                /** @description Ghi chú của người dùng, rỗng nếu không có */
+                note: string;
                 /** Format: date-time */
                 updatedAt: string;
                 deletedAt: string | null;
@@ -685,6 +691,8 @@ export interface components {
             };
             allowance: number;
             wageSnapshot: number;
+            /** @default  */
+            note: string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -719,6 +727,8 @@ export interface components {
                     };
                     allowance: number;
                     wageSnapshot: number;
+                    /** @default  */
+                    note: string;
                     /** Format: date-time */
                     updatedAt: string;
                 };

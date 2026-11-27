@@ -15,16 +15,20 @@ import { useHourColors, useTheme } from '@/hooks/use-theme';
 import { formatHours, formatK, formatWon } from '@/lib/format';
 import { dayOfWeek, totalHours } from '@/payroll/index.ts';
 
-/** Chia tháng thành các tuần 7 ô (CN → T7); ô null là ngày ngoài tháng. */
+/** Nhãn cột theo thứ tự T2 → CN. */
+const WEEK_LABELS = [...DOW_LABELS.slice(1), DOW_LABELS[0]];
+
+/** Chia tháng thành các tuần 7 ô (T2 → CN); ô null là ngày ngoài tháng. */
 function weeksOf(month: string): (string | null)[][] {
   const days = daysOfMonth(month);
-  const cells: (string | null)[] = [...Array<null>(dayOfWeek(days[0]!)).fill(null), ...days];
+  const lead = (dayOfWeek(days[0]!) + 6) % 7; // số ô trống trước ngày 1 khi tuần bắt đầu từ T2
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...days];
   while (cells.length % 7) cells.push(null);
   return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
 }
 
 /**
- * Lịch tháng bắt đầu từ CN; mỗi ô hiện số giờ (màu theo loại giờ nhiều nhất) và tiền ngày "103k".
+ * Lịch tháng bắt đầu từ T2, kết thúc CN; mỗi ô hiện số giờ (màu theo loại giờ nhiều nhất) và tiền ngày "103k".
  * Dựng từng hàng tuần với ô flex: 1. Không dùng flexWrap + width 14,28%: Android làm tròn pixel
  * khiến 7 ô vượt 100% và ô thứ 7 rớt xuống hàng (lịch lệch một cột).
  */
@@ -36,15 +40,15 @@ export function MonthCalendar({ data, holidays }: { data: MonthData; holidays: R
   return (
     <View style={styles.grid}>
       <View style={styles.row}>
-        {DOW_LABELS.map((d, i) => (
+        {WEEK_LABELS.map((d) => (
           <View
             key={d}
             style={[
               styles.cell,
               styles.dow,
-              i === 0 ? { backgroundColor: theme.offBg, borderColor: 'transparent' } : { borderColor: theme.line },
+              d === 'CN' ? { backgroundColor: theme.offBg, borderColor: 'transparent' } : { borderColor: theme.line },
             ]}>
-            <Text style={[styles.dowText, { color: i === 0 ? theme.offText : theme.textSecondary }]}>{d}</Text>
+            <Text style={[styles.dowText, { color: d === 'CN' ? theme.offText : theme.textSecondary }]}>{d}</Text>
           </View>
         ))}
       </View>
@@ -99,7 +103,7 @@ function DayCell({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Ngày ${dayNum}${holiday ? `, ${holiday}` : ''}${hasData ? `, ${formatWon(total)}` : ''}`}
+      accessibilityLabel={`Ngày ${dayNum}${holiday ? `, ${holiday}` : ''}${hasData ? `, ${formatWon(total)}` : ''}${day?.note ? ', có ghi chú' : ''}`}
       style={({ pressed }) => [
         styles.day,
         off
@@ -109,6 +113,8 @@ function DayCell({
         pressed && styles.pressed,
       ]}>
       <Text style={[styles.dayNum, { color: off ? theme.offText : theme.text }]}>{dayNum}</Text>
+      {/* Chấm nhỏ ở góc: ngày có ghi chú (xem nội dung trong bảng chấm công hoặc Lịch sử) */}
+      {day?.note ? <View style={[styles.noteDot, { backgroundColor: theme.primary }]} /> : null}
       {holiday && !hasData ? (
         <Text numberOfLines={1} style={[styles.holiday, { color: theme.offText }]}>
           {holiday}
@@ -151,6 +157,7 @@ const styles = StyleSheet.create({
   },
   pressed: { transform: [{ scale: 0.96 }] },
   dayNum: { fontSize: 13, fontWeight: 700, paddingLeft: 3 },
+  noteDot: { position: 'absolute', top: 8, right: 7, width: 7, height: 7, borderRadius: 4 },
   holiday: { fontSize: 9.5, lineHeight: 11, paddingLeft: 3 },
   chip: {
     fontSize: 11.5,

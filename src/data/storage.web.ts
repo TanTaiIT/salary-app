@@ -9,7 +9,10 @@ const empty = (): Snapshot => ({ jobs: [], workDays: [], weeklyPays: [], kv: {} 
 function read(): Snapshot {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
-    return raw ? { ...empty(), ...(JSON.parse(raw) as Partial<Snapshot>) } : empty();
+    if (!raw) return empty();
+    const s = { ...empty(), ...(JSON.parse(raw) as Partial<Snapshot>) };
+    // Dữ liệu lưu trước khi có ghi chú không có trường note
+    return { ...s, workDays: s.workDays.map((d) => ({ ...d, note: d.note ?? '' })) };
   } catch {
     return empty();
   }

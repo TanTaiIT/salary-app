@@ -23,6 +23,12 @@ const Won = z.number().int().min(0).max(100_000_000);
 
 export const Id = z.uuid();
 
+/** Độ dài tối đa của ghi chú một ngày công (ký tự) */
+export const NOTE_MAX = 200;
+
+/** Số thay đổi tối đa mỗi loại trong một gói /v1/sync; app gửi theo lô đúng bằng số này */
+export const SYNC_BATCH_MAX = 250;
+
 /** Ngày công app gửi lên. updatedAt là thời điểm sửa trên máy người dùng. */
 export const WorkDayInput = z
   .object({
@@ -31,6 +37,8 @@ export const WorkDayInput = z
     hours: HoursSchema,
     allowance: Won,
     wageSnapshot: z.number().int().min(1).max(1_000_000),
+    /** Ghi chú của người dùng; app cũ không gửi trường này thì coi là không có ghi chú */
+    note: z.string().trim().max(NOTE_MAX, `Ghi chú tối đa ${NOTE_MAX} ký tự`).default(''),
     updatedAt: z.iso.datetime(),
   })
   .refine((v) => totalHours(v.hours) <= 24, {
@@ -97,10 +105,10 @@ export const SyncRequest = z.object({
   /** serverTime nhận được ở lần đồng bộ trước; null ở lần đầu */
   since: z.iso.datetime().nullable(),
   /** Xử lý trước workDays để server kiểm tra được jobId */
-  jobs: z.array(JobChange).max(500).default([]),
-  workDays: z.array(WorkDayChange).max(500),
+  jobs: z.array(JobChange).max(SYNC_BATCH_MAX).default([]),
+  workDays: z.array(WorkDayChange).max(SYNC_BATCH_MAX),
   /** Xử lý sau workDays */
-  weeklyHolidayPays: z.array(WeeklyHolidayPayChange).max(500).default([]),
+  weeklyHolidayPays: z.array(WeeklyHolidayPayChange).max(SYNC_BATCH_MAX).default([]),
   /** Lần mở app đầu tiên trên máy; server giữ giá trị sớm nhất */
   firstOpenAt: z.iso.datetime().optional(),
   /** Cài đặt đã sửa trên máy từ lần đồng bộ trước; không gửi nếu không đổi */

@@ -2,7 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import type { Job, Settings, WorkDayRecord } from '../src/data/types.ts';
-import { applyResults, mergeRemote, mergeSettings, pickActiveJob, pickDirty } from '../src/sync/merge.ts';
+import { SYNC_BATCH_MAX } from '../src/schemas/index.ts';
+import {
+  applyResults,
+  BATCH,
+  mergeRemote,
+  mergeSettings,
+  pickActiveJob,
+  pickDirty,
+  workDayFromApi,
+  workDayToChange,
+} from '../src/sync/merge.ts';
 
 const hours = { x1: 8, x1_5: 0, x2: 0, x2_5: 0, x3: 0 };
 const day = (id: string, updatedAt: string, dirty: boolean, extra: Partial<WorkDayRecord> = {}): WorkDayRecord => ({
@@ -12,6 +22,7 @@ const day = (id: string, updatedAt: string, dirty: boolean, extra: Partial<WorkD
   hours,
   allowance: 0,
   wageSnapshot: 10_320,
+  note: '',
   updatedAt,
   deletedAt: null,
   dirty,
@@ -21,11 +32,26 @@ const T1 = '2026-11-20T10:00:00.000Z';
 const T2 = '2026-11-20T11:00:00.000Z';
 const T3 = '2026-11-20T12:00:00.000Z';
 
+describe('Ghi chú ngày công', () => {
+  test('gửi lên kèm ghi chú; nhận về giữ ghi chú, server cũ không có trường note thì là rỗng', () => {
+    const d = day('d1', T1, true, { note: 'Ca đêm' });
+    assert.equal(workDayToChange(d).data.note, 'Ca đêm');
+    const fromApi = { ...workDayToChange(d).data, id: 'd1', deletedAt: null, pay: { work: 0, allowance: 0, total: 0 } };
+    assert.equal(workDayFromApi(fromApi).note, 'Ca đêm');
+    const { note: _, ...legacy } = fromApi;
+    assert.equal(workDayFromApi(legacy as typeof fromApi).note, '');
+  });
+});
+
 describe('Gửi lên', () => {
-  test('chỉ lấy bản chưa đồng bộ, tối đa 500, bỏ bản đã bị từ chối', () => {
-    const rows = Array.from({ length: 600 }, (_, i) => day(`d${i}`, T1, i !== 0));
+  test('lô gửi của app bằng đúng giới hạn server nhận (SYNC_BATCH_MAX)', () => {
+    assert.equal(BATCH, SYNC_BATCH_MAX);
+  });
+
+  test('chỉ lấy bản chưa đồng bộ, tối đa BATCH, bỏ bản đã bị từ chối', () => {
+    const rows = Array.from({ length: BATCH + 100 }, (_, i) => day(`d${i}`, T1, i !== 0));
     const picked = pickDirty(rows, new Set(['d1']));
-    assert.equal(picked.length, 500);
+    assert.equal(picked.length, BATCH);
     assert.ok(!picked.some((r) => r.id === 'd0' || r.id === 'd1'));
   });
 });

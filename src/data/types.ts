@@ -28,6 +28,8 @@ export interface WorkDayRecord extends Syncable {
   allowance: number;
   /** Lương giờ lúc ghi ngày công; đổi lương giờ không làm đổi ngày cũ */
   wageSnapshot: number;
+  /** Ghi chú của người dùng, "" nếu không có. Ngày chỉ có ghi chú (không giờ làm) vẫn được lưu. */
+  note: string;
 }
 
 /** 주휴수당 đã xác nhận cho một tuần. amount = 0 nghĩa là người dùng đã bỏ, không gợi ý lại. */
